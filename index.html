@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrivacyLens | Sensitive Information Alerts</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="cyber-backdrop" aria-hidden="true">
+    <canvas id="cyber-background"></canvas>
+  </div>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">◈</span>
+        PrivacyLens
+      </div>
+
+      <p class="sidebar-label">WORKSPACE</p>
+      <nav class="navigation">
+        <a class="nav-link active" href="#dashboard">
+          <span>⌂</span> Dashboard
+        </a>
+        <a class="nav-link" href="#scanner">
+          <span>⌕</span> Privacy Scanner
+        </a>
+        <a class="nav-link" href="#activity">
+          <span>≡</span> Activity Log
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="local-status">
+          <span class="status-dot"></span>
+          <div>
+            <strong>Local DLP Engine</strong>
+            <p>Only protected data leaves the app.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PRIVACY ENGINEERING / PS-004</p>
+          <h1>Privacy Dashboard</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="local-only-badge">● Local scan / protected send</span>
+        </div>
+      </header>
+
+      <div class="mission-hud" aria-label="Security simulation status">
+        <span class="mission-hud-label"><i></i> SENSITIVE DATA / LOCAL SHIELD</span>
+        <span>LOCAL SCAN + OCR / LOOPBACK</span>
+        <span class="mission-hud-status">ALERTS <b>ENABLED</b></span>
+      </div>
+
+      <section class="dashboard-section" id="dashboard">
+        <div class="welcome-panel">
+          <div class="welcome-content">
+            <span class="section-tag">PRIVACYLENS ALERTS</span>
+            <h2>Shield private data before it leaves.</h2>
+            <p>
+              Scan text locally, encrypt the original in the trusted backend,
+              and send only redacted content to the configured destination.
+            </p>
+            <a href="#scanner" class="primary-button">
+              Start privacy scan →
+            </a>
+          </div>
+          <div class="welcome-visual">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <div class="shield-symbol" aria-hidden="true">
+              <span class="shield-check"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <p>Current findings</p>
+            <h3 id="detected-count">0</h3>
+            <span>Detected in the current text</span>
+          </article>
+          <article class="metric-card">
+            <p>Alert status</p>
+            <h3 id="protection-status" style="font-size:23px">READY</h3>
+            <span>Encryption and redaction status</span>
+          </article>
+        </div>
+
+        <section class="panel" id="scanner">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">01 / DETECTION</p>
+              <h2>Privacy Scanner</h2>
+              <p>Originals stay in the local encrypted vault. Only redacted text can be sent onward.</p>
+            </div>
+            <span class="neutral-badge">Protected transmission</span>
+          </div>
+
+          <form id="scan-form">
+            <label for="source-text">Text to scan (including locally extracted image text)</label>
+            <label for="scan-context">Expected field type</label>
+            <select id="scan-context">
+              <option value="">Automatic context detection</option>
+              <option value="phone number">Phone or contact number</option>
+              <option value="student id">Student, roll, or registration ID</option>
+              <option value="employee id">Employee ID</option>
+              <option value="payment card">Any payment card (credit, debit, ATM, gift, etc.)</option>
+              <option value="bank account">Bank account or routing number</option>
+              <option value="medical record">Medical or health record</option>
+            </select>
+            <textarea id="source-text" placeholder="Example: Password: SamplePass123! Card number: 4111 1111 1111 1111 Bank account: 1234567890" required></textarea>
+            <label for="image-upload">Or scan an image locally (PNG, JPEG, WEBP; max 5 MB)</label>
+            <input id="image-upload" type="file" accept="image/png,image/jpeg,image/webp">
+            <p class="field-hint">
+              Local Tesseract OCR extracts text into the field above. Extracted text is visible here and stays on this device unless you choose Send Safe Information; that sends only redacted text to your configured destination.
+            </p>
+            <div class="local-find-controls">
+              <label for="text-find-input">Find within the text above (local only)</label>
+              <div class="local-find-row">
+                <input id="text-find-input" type="search" placeholder="Find a word or phrase">
+                <button class="secondary-button" type="button" id="find-in-text">Find</button>
+              </div>
+              <div id="text-find-status" class="field-hint" role="status" aria-live="polite"></div>
+            </div>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">
+                Scan Information
+              </button>
+              <button class="secondary-button" type="button" id="scan-image">
+                Scan Image
+              </button>
+              <button class="secondary-button" type="button" id="load-sample">
+                Load Test Example
+              </button>
+              <button class="secondary-button" type="button" id="clear-form">
+                Clear
+              </button>
+            </div>
+          </form>
+
+          <div class="protection-controls">
+            <strong>Privacy shield</strong>
+            <p class="field-hint">
+              Send Safe Information automatically scans, censors, verifies AES-256-GCM encrypted staging, then sends only redacted text. Any scan, encryption, or verification error blocks transmission. Original recovery requires a server-side PRIVACY_RECIPIENT_TOKEN; patterns and OCR can miss data.
+            </p>
+            <details class="shield-notes">
+              <summary>Setup and privacy limits</summary>
+              <p>Set DESTINATION_URL to an HTTPS endpoint to enable sending. The backend creates its encryption key outside the website; keep the key and vault together and backed up.</p>
+              <p>Install Tesseract locally for image OCR. Image OCR and the Find control run on this device and do not send text to an AI or search service. An authorized recipient can recover a record with GET /api/records/{record_id}/original and a PRIVACY_RECIPIENT_TOKEN; use a trusted recipient client and never place that token in this page.</p>
+              <p>Detection is pattern-based and OCR can miss content. Review the redacted output before sending; do not treat a clean scan as a guarantee.</p>
+            </details>
+            <button class="primary-button secure-send-button" id="send-securely" type="button" disabled>
+              Send Safe Information
+            </button>
+            <div id="send-status" class="status-message" role="status" aria-live="polite">
+              Scan information before sending.
+            </div>
+          </div>
+
+          <div class="comparison-grid" style="margin-top:22px">
+            <div class="preview-card">
+              <div class="preview-heading">
+                <h3>Findings (masked)</h3>
+                <span class="preview-indicator original">SENSITIVE</span>
+              </div>
+              <pre id="original-output">Your input will appear here.</pre>
+            </div>
+            <div class="preview-card">
+              <div class="preview-heading">
+                <h3>Safe information ready to send</h3>
+                <span class="preview-indicator sanitized">PROTECTED</span>
+              </div>
+              <pre id="sanitized-output">Your protected result will appear here.</pre>
+            </div>
+          </div>
+          <div id="scan-status" class="status-message" role="status">
+            Ready to scan fictional test data.
+          </div>
+          <div id="finding-summary" class="finding-summary" aria-live="polite"></div>
+        </section>
+
+        <section class="panel" id="activity">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">02 / TRANSPARENCY</p>
+              <h2>Activity Log</h2>
+              <p>Review sensitive-content alerts from this browser session.</p>
+            </div>
+            <button type="button" class="secondary-button" id="clear-log">
+              Clear log
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Event</th>
+                  <th>Result</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="activity-rows">
+                <tr>
+                  <td colspan="4">No events yet. Run your first test.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="app-footer">
+          <span>PrivacyLens · PECathon PS-004</span>
+          <span>Only redacted text is sent; originals remain encrypted in local storage.</span>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="sensitive-alert" id="sensitive-alert" aria-labelledby="sensitive-alert-title">
+    <div class="sensitive-alert-label">PRIVACY ALERT / ACTION REQUIRED</div>
+    <h2 id="sensitive-alert-title">Sensitive information detected</h2>
+    <p id="sensitive-alert-message"></p>
+    <form method="dialog">
+      <button class="primary-button" type="submit">Acknowledge</button>
+    </form>
+  </dialog>
+  <!-- === ADD THIS TO YOUR index.html === -->
+<div id="screen-shield-control" style="margin: 20px; text-align: center;">
+    <button id="startShieldBtn" style="padding: 10px 20px; font-size: 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+        Enable Screen Privacy Shield
+    </button>
+</div>
+
+<!-- Hidden video & canvas elements for processing the screen stream -->
+<div style="display: none;">
+    <video id="sharedScreenVideo" autoplay playsinline></video>
+    <canvas id="shieldCanvas"></canvas>
+</div>
+<!-- =================================== -->
+  <script src="script.js"></script>
+</body>
+</html>
