@@ -576,6 +576,35 @@ def secure_send(record_id: str) -> dict[str, Any]:
     }
 
 
+def verify_local_encryption(record_id: str) -> dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,}", record_id):
+        raise ValueError("Protected record identifier is invalid.")
+    record = get_protected_record(record_id)
+    if record is None:
+        raise ValueError("Protected record was not found.")
+
+    try:
+        decrypt_record(record)
+    except (InvalidTag, RuntimeError, ValueError) as error:
+        raise RuntimeError("Encrypted staging could not be verified.") from error
+
+    try:
+        categories = json.loads(record["categories"])
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("Encrypted record metadata could not be verified.") from error
+    if not isinstance(categories, list) or not all(isinstance(item, str) for item in categories):
+        raise RuntimeError("Encrypted record metadata could not be verified.")
+
+    return {
+        "success": True,
+        "mode": "local-encrypted",
+        "encrypted_storage": True,
+        "finding_count": len(categories),
+        "categories": categories,
+        "record_id": record_id,
+    }
+
+
 def _configured_origins() -> set[str]:
     origins = {
         value.strip().rstrip("/")
@@ -653,7 +682,11 @@ class PrivacyLensHandler(SimpleHTTPRequestHandler):
         if not origin:
             return True
         if origin == "null":
-            return self.path.split("?", 1)[0] in {"/api/scan", "/api/scan-image"}
+            return self.path.split("?", 1)[0] in {
+                "/api/scan",
+                "/api/scan-image",
+                "/api/local-seal",
+            }
         parsed = urllib.parse.urlsplit(origin)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path:
             return False
@@ -703,7 +736,7 @@ class PrivacyLensHandler(SimpleHTTPRequestHandler):
             self._send_json(403, {"message": "Request origin is not allowed."})
             return
         path = self.path.split("?", 1)[0]
-        if path not in {"/api/scan", "/api/scan-image", "/api/secure-send"}:
+        if path not in {"/api/scan", "/api/scan-image", "/api/local-seal", "/api/secure-send"}:
             self._send_json(404, {"message": "API endpoint not found."})
             return
         if self.headers.get_content_type() != "application/json":
@@ -744,6 +777,13 @@ class PrivacyLensHandler(SimpleHTTPRequestHandler):
                     "text/plain; charset=utf-8",
                 )
                 self._send_json(200, public_scan_result(result, safe_content, record_id, "text"))
+                return
+
+            if path == "/api/local-seal":
+                record_id = payload.get("record_id", "")
+                if not isinstance(record_id, str):
+                    raise ValueError("Protected record identifier is invalid.")
+                self._send_json(200, verify_local_encryption(record_id))
                 return
 
             if path == "/api/scan-image":

@@ -432,7 +432,7 @@ function scanTextLocally(text, fieldName = "") {
   return {
     state: findings.length ? "review_required" : "no_matches_unverified",
     message: findings.length
-      ? "Sensitive information detected. Protect it before sending."
+      ? "Sensitive information detected. Protect it before sharing."
       : "No configured sensitive patterns matched.",
     findings,
     preview_segments: segments
@@ -459,22 +459,22 @@ function showLocalScanResult(result, { announce = false, recordActivity = false,
   if (result.findings.length) {
     setStatus(
       scanStatus,
-      `${result.findings.length} sensitive item(s) detected by the browser fallback. Secure sending is disabled.${reasonText}`,
+      `${result.findings.length} sensitive item(s) detected. Encryption requires the local scanner backend.${reasonText}`,
       "warning"
     );
     if (announce) {
       const categories = [...new Set(result.findings.map((finding) => finding.category))].join(", ");
-      showSensitivePopup(`${result.findings.length} potential finding(s): ${categories}. Browser-only scan; secure sending is disabled.`);
+      showSensitivePopup(`${result.findings.length} potential finding(s): ${categories}. Browser-only scan; local encryption is unavailable.`);
       playDetectionWarning();
     }
   } else {
     setStatus(
       scanStatus,
-      `No configured patterns matched in browser fallback. Secure sending is disabled.${reasonText}`,
+      `No configured patterns matched in browser fallback. Local encryption is unavailable.${reasonText}`,
       "warning"
     );
   }
-  setStatus(sendStatus, "Not sent. The browser-only scan cannot securely transmit information.", "danger");
+  setStatus(sendStatus, "Not encrypted. Start the local scanner backend and scan again.", "danger");
 
   if (recordActivity) {
     addActivity(
@@ -509,7 +509,6 @@ function updateSendButton() {
   const hasImage = Boolean(imageUpload?.files?.length);
   sendSecurelyButton.disabled =
     sending
-    || window.location.protocol === "file:"
     || (!hasText && !hasImage);
 }
 
@@ -542,13 +541,11 @@ function updateScanResult(result, { announce = false, recordActivity = false } =
     setStatus(scanStatus, "No configured patterns matched. Scanning cannot guarantee that all private information was found.", "warning");
   } else {
     const statusClass = result.state === "blocked" ? "danger" : "warning";
-    setStatus(scanStatus, `${findings.length} sensitive item(s) detected. Review the highlighted text; sending will protect detected information.`, statusClass);
+    setStatus(scanStatus, `${findings.length} sensitive item(s) detected. Review the masked preview; the original is encrypted locally.`, statusClass);
   }
   setStatus(
     sendStatus,
-    window.location.protocol === "file:"
-      ? `Original encrypted in the local vault as ${scanRecordId}. Open start_privacylens.bat to enable sending.`
-      : `Encrypted staging verified. Sensitive values are censored; safe content is ready to send.`,
+    `Original encrypted in the local vault as ${scanRecordId}. Nothing has been sent off this device.`,
     "success"
   );
 
@@ -584,7 +581,7 @@ async function scanText({ announce = false, recordActivity = false } = {}) {
     renderProtectedPreview([]);
     renderFindingSummary([], "empty");
     setStatus(scanStatus, "Enter information to scan.", "warning");
-    setStatus(sendStatus, "Scan information before sending.", "warning");
+    setStatus(sendStatus, "Scan information to encrypt it locally.", "warning");
     return false;
   }
 
@@ -594,7 +591,7 @@ async function scanText({ announce = false, recordActivity = false } = {}) {
     renderProtectedPreview([]);
     renderFindingSummary([], "empty");
     setStatus(scanStatus, "Input exceeds the local scanner limit. Nothing was submitted.", "danger");
-    setStatus(sendStatus, "Not sent. Shorten the text and scan it again.", "danger");
+    setStatus(sendStatus, "Not encrypted. Shorten the text and scan it again.", "danger");
     return false;
   }
 
@@ -656,7 +653,7 @@ async function scanImage() {
   lastScannedText = null;
   scanRecordId = null;
   updateSendButton();
-  setStatus(scanStatus, "Sending image to the loopback-only backend for local OCR…", "warning");
+  setStatus(scanStatus, "Processing image with the loopback-only backend for local OCR…", "warning");
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const result = await postDlp("/api/scan-image", {
@@ -672,7 +669,7 @@ async function scanImage() {
     lastScannedText = null;
     updateSendButton();
     setStatus(scanStatus, error.message || "Local OCR or encrypted storage failed. The image was not sent.", "danger");
-    setStatus(sendStatus, "Not sent. Scan and encrypt the image successfully first.", "danger");
+    setStatus(sendStatus, "Not encrypted. Scan the image successfully first.", "danger");
     return false;
   }
 }
@@ -694,7 +691,7 @@ function loadSample() {
   lastScannedText = null;
   updateSendButton();
   setStatus(scanStatus, "Fictional sample loaded. Click Scan Information to check it.", "warning");
-  setStatus(sendStatus, "Scan information before sending.", "warning");
+  setStatus(sendStatus, "Scan information to encrypt it locally.", "warning");
 }
 
 function clearForm() {
@@ -714,13 +711,13 @@ function clearForm() {
   renderFindingSummary([], "empty");
   if (sanitizedOutput) sanitizedOutput.textContent = "Your protected result will appear here.";
   setStatus(scanStatus, "Text cleared. Add information to start a new scan.");
-  setStatus(sendStatus, "Scan information before sending.");
+  setStatus(sendStatus, "Scan information to encrypt it locally.");
 }
 
 async function sendSecurely() {
   sending = true;
   updateSendButton();
-  setStatus(sendStatus, "Scanning, censoring sensitive values, and verifying encrypted storage…", "warning");
+  setStatus(sendStatus, "Scanning and verifying AES-256-GCM encrypted local storage…", "warning");
   try {
     let prepared = Boolean(
       scanRecordId
@@ -740,23 +737,23 @@ async function sendSecurely() {
       || lastScannedText === null
       || lastScannedText !== sourceText?.value
     ) {
-      throw new Error("Not sent. Censoring and encrypted storage must succeed before transmission.");
+      throw new Error("Not completed. Scan and verify encrypted local storage before continuing.");
     }
 
-    setStatus(sendStatus, "Encrypted staging verified. Sending only censored content…", "warning");
-    const result = await postDlp("/api/secure-send", {
+    setStatus(sendStatus, "Verifying encrypted record on this device…", "warning");
+    const result = await postDlp("/api/local-seal", {
       record_id: scanRecordId
     });
-    if (result.success !== true || result.encrypted_storage !== true || result.mode !== "redacted") {
-      throw new Error(result.message || "Encrypted staging or protected transmission could not be verified.");
+    if (result.success !== true || result.encrypted_storage !== true || result.mode !== "local-encrypted") {
+      throw new Error(result.message || "Encrypted local storage could not be verified.");
     }
 
     const count = Number.isInteger(result.finding_count) ? result.finding_count : 0;
-    setStatus(sendStatus, `Sent successfully. Original remains encrypted with AES-256-GCM; only censored content was transmitted. ${count} sensitive category/categories protected.`, "success");
-    addActivity("Secure transmission", "Sent", `Redacted content only; ${count} category/categories; original not logged`);
+    setStatus(sendStatus, `Encrypted and verified locally with AES-256-GCM. Nothing was sent off this device. ${count} sensitive category/categories protected.`, "success");
+    addActivity("Local encryption", "Verified", `${count} sensitive category/categories; original remains encrypted; nothing transmitted`);
   } catch (error) {
-    setStatus(sendStatus, error.message || "Not sent. Protection or transmission failed.", "danger");
-    addActivity("Secure transmission", "Blocked", "Protection or delivery failed; original text not logged");
+    setStatus(sendStatus, error.message || "Local encryption could not be verified.", "danger");
+    addActivity("Local encryption", "Failed", "Encrypted storage could not be verified; original text not logged");
   } finally {
     sending = false;
     updateSendButton();
@@ -807,7 +804,7 @@ if (sourceText) {
     scanRecordId = null;
     if (textFindStatus) textFindStatus.textContent = "";
     updateSendButton();
-    setStatus(sendStatus, "Text changed. Scan again before sending.", "warning");
+    setStatus(sendStatus, "Text changed. Scan again to encrypt it locally.", "warning");
   });
 }
 
@@ -815,7 +812,7 @@ if (scanContext) scanContext.addEventListener("change", () => {
   lastScannedText = null;
   scanRecordId = null;
   updateSendButton();
-  setStatus(sendStatus, "Scan again with the selected field type before sending.", "warning");
+  setStatus(sendStatus, "Scan again with the selected field type to encrypt it locally.", "warning");
 });
 
 if (imageUpload) imageUpload.addEventListener("change", () => {
@@ -856,7 +853,7 @@ setStatus(
   scanStatus,
   "Ready. Enter information to scan and protect."
 );
-setStatus(sendStatus, "Scan information before sending.", "warning");
+setStatus(sendStatus, "Scan information to encrypt it locally.", "warning");
 updateSendButton();
 
 console.log("PrivacyLens demo initialized.");

@@ -252,6 +252,12 @@ class PrivacyScannerTests(unittest.TestCase):
         handler.path = "/api/scan-image"
         self.assertTrue(handler._origin_is_allowed())
 
+        handler.path = "/api/local-seal"
+        self.assertTrue(handler._origin_is_allowed())
+
+        handler.path = "/api/secure-send"
+        self.assertFalse(handler._origin_is_allowed())
+
     def test_scanner_allows_common_local_dev_server_ports(self):
         handler = object.__new__(server.PrivacyLensHandler)
         handler.headers = Message()
@@ -474,6 +480,59 @@ class SecureTransmissionTests(unittest.TestCase):
             requests[0].get_header("Authorization"),
             "Bearer destination-secret-token",
         )
+
+    def test_local_encryption_verifies_ciphertext_without_network_or_plaintext(self):
+        text = "Password: DemoPass123!"
+        record_id = self.create_record(text)
+        with patch("server.urllib.request.build_opener") as build_opener:
+            result = server.verify_local_encryption(record_id)
+
+        build_opener.assert_not_called()
+        self.assertTrue(result["success"])
+        self.assertEqual(result["mode"], "local-encrypted")
+        self.assertTrue(result["encrypted_storage"])
+        self.assertEqual(result["finding_count"], 1)
+        self.assertNotIn(text, json.dumps(result))
+
+    def test_local_seal_endpoint_returns_verified_local_status(self):
+        record_id = self.create_record("Password: DemoPass123!")
+        payload = json.dumps({"record_id": record_id}).encode("utf-8")
+        handler = object.__new__(server.PrivacyLensHandler)
+        response = {}
+        handler.path = "/api/local-seal"
+        handler.headers = Message()
+        handler.headers["Content-Type"] = "application/json"
+        handler.headers["Content-Length"] = str(len(payload))
+        handler.rfile = io.BytesIO(payload)
+        handler._origin_is_allowed = lambda: True
+        handler._send_json = lambda status, value: response.update(status=status, value=value)
+
+        with patch("server.urllib.request.build_opener") as build_opener:
+            handler.do_POST()
+
+        build_opener.assert_not_called()
+        self.assertEqual(response["status"], 200)
+        self.assertEqual(response["value"]["mode"], "local-encrypted")
+        self.assertNotIn("DemoPass123!", json.dumps(response["value"]))
+
+    def test_local_encryption_rejects_corrupted_ciphertext(self):
+        record_id = self.create_record("Password: DemoPass123!")
+        database = sqlite3.connect(self.vault_file)
+        try:
+            ciphertext = database.execute(
+                "SELECT original_ciphertext FROM protected_records WHERE record_id = ?",
+                (record_id,),
+            ).fetchone()[0]
+            database.execute(
+                "UPDATE protected_records SET original_ciphertext = ? WHERE record_id = ?",
+                (bytes([ciphertext[0] ^ 1]) + ciphertext[1:], record_id),
+            )
+            database.commit()
+        finally:
+            database.close()
+
+        with self.assertRaisesRegex(RuntimeError, "Encrypted staging could not be verified"):
+            server.verify_local_encryption(record_id)
 
     def test_secure_send_rebuilds_redaction_from_verified_encrypted_original(self):
         record_id = self.create_record("Password: DemoPass123!")

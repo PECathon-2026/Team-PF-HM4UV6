@@ -35,7 +35,7 @@
           <span class="status-dot"></span>
           <div>
             <strong>Local DLP Engine</strong>
-            <p>Only protected data leaves the app.</p>
+            <p>Scanned data stays on this device.</p>
           </div>
         </div>
       </div>
@@ -48,7 +48,7 @@
           <h1>Privacy Dashboard</h1>
         </div>
         <div class="topbar-actions">
-          <span class="local-only-badge">● Local scan / protected send</span>
+          <span class="local-only-badge">● Local scan / AES-GCM encryption</span>
         </div>
       </header>
 
@@ -62,10 +62,10 @@
         <div class="welcome-panel">
           <div class="welcome-content">
             <span class="section-tag">PRIVACYLENS ALERTS</span>
-            <h2>Shield private data before it leaves.</h2>
+            <h2>Keep private data encrypted on this device.</h2>
             <p>
-              Scan text locally, encrypt the original in the trusted backend,
-              and send only redacted content to the configured destination.
+              Scan text locally, encrypt the original in the local vault,
+              and review a redacted preview without transmitting your data.
             </p>
             <a href="#scanner" class="primary-button">
               Start privacy scan →
@@ -98,9 +98,9 @@
             <div>
               <p class="eyebrow">01 / DETECTION</p>
               <h2>Privacy Scanner</h2>
-              <p>Originals stay in the local encrypted vault. Only redacted text can be sent onward.</p>
+              <p>Originals stay AES-256-GCM encrypted in the local vault. Sensitive values are masked in the preview; this action keeps everything on this device.</p>
             </div>
-            <span class="neutral-badge">Protected transmission</span>
+            <span class="neutral-badge">AES-GCM local storage</span>
           </div>
 
           <form id="scan-form">
@@ -119,7 +119,7 @@
             <label for="image-upload">Or scan an image locally (PNG, JPEG, WEBP; max 5 MB)</label>
             <input id="image-upload" type="file" accept="image/png,image/jpeg,image/webp">
             <p class="field-hint">
-              Local Tesseract OCR extracts text into the field above. Extracted text is visible here and stays on this device unless you choose Send Safe Information; that sends only redacted text to your configured destination.
+              Local Tesseract OCR extracts text into the field above. Extracted text is visible here and remains on this device; the original is encrypted in the local vault when scanned.
             </p>
             <div class="local-find-controls">
               <label for="text-find-input">Find within the text above (local only)</label>
@@ -146,21 +146,21 @@
           </form>
 
           <div class="protection-controls">
-            <strong>Privacy shield</strong>
+            <strong>Local encryption</strong>
             <p class="field-hint">
-              Send Safe Information automatically scans, censors, verifies AES-256-GCM encrypted staging, then sends only redacted text. Any scan, encryption, or verification error blocks transmission. Original recovery requires a server-side PRIVACY_RECIPIENT_TOKEN; patterns and OCR can miss data.
+              Encrypt & Keep Local scans the text, stores the original with AES-256-GCM, and verifies the encrypted record. Nothing is sent to an external server. Sensitive values are masked in the safe preview; patterns and OCR can miss data.
             </p>
             <details class="shield-notes">
               <summary>Setup and privacy limits</summary>
-              <p>Set DESTINATION_URL to an HTTPS endpoint to enable sending. The backend creates its encryption key outside the website; keep the key and vault together and backed up.</p>
+              <p>The backend creates its encryption key outside the website; keep the key and vault together and backed up. External sending is not performed by the local encryption button.</p>
               <p>Install Tesseract locally for image OCR. Image OCR and the Find control run on this device and do not send text to an AI or search service. An authorized recipient can recover a record with GET /api/records/{record_id}/original and a PRIVACY_RECIPIENT_TOKEN; use a trusted recipient client and never place that token in this page.</p>
-              <p>Detection is pattern-based and OCR can miss content. Review the redacted output before sending; do not treat a clean scan as a guarantee.</p>
+              <p>Detection is pattern-based and OCR can miss content. Review the redacted output before sharing; do not treat a clean scan as a guarantee.</p>
             </details>
             <button class="primary-button secure-send-button" id="send-securely" type="button" disabled>
-              Send Safe Information
+              Encrypt &amp; Keep Local
             </button>
             <div id="send-status" class="status-message" role="status" aria-live="polite">
-              Scan information before sending.
+              Scan information to encrypt it locally.
             </div>
           </div>
 
@@ -174,7 +174,7 @@
             </div>
             <div class="preview-card">
               <div class="preview-heading">
-                <h3>Safe information ready to send</h3>
+                <h3>Redacted text preview</h3>
                 <span class="preview-indicator sanitized">PROTECTED</span>
               </div>
               <pre id="sanitized-output">Your protected result will appear here.</pre>
@@ -218,7 +218,7 @@
 
         <footer class="app-footer">
           <span>PrivacyLens · PECathon PS-004</span>
-          <span>Only redacted text is sent; originals remain encrypted in local storage.</span>
+          <span>Originals remain AES-256-GCM encrypted in local storage; nothing is sent.</span>
         </footer>
       </section>
     </main>
@@ -227,7 +227,7 @@
   <dialog class="sensitive-alert" id="sensitive-alert" aria-labelledby="sensitive-alert-title">
     <div class="sensitive-alert-label">PRIVACY ALERT / ACTION REQUIRED</div>
     <h2 id="sensitive-alert-title">Sensitive information detected</h2>
-    <p id="sensitive-alert-message"></p>
+    <p id="sensitive-alert-message">Sensitive values are masked in the preview and the original stays encrypted locally. Acknowledge this alert, then click Encrypt &amp; Keep Local to verify the encrypted record.</p>
     <form method="dialog">
       <button class="primary-button" type="submit">Acknowledge</button>
     </form>
